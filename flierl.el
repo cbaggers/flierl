@@ -50,7 +50,7 @@
      (substring
       (flierl-comint-run-in-process
        (get-process "inferior-erlang")
-       (format "fa:compile(\"%s\")." path))
+       (format "flierl:compile(\"%s\")." path))
       0 -3))))
 
 (defun erl-to-flyc-err (file kind message)
