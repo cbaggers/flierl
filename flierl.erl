@@ -14,8 +14,8 @@ process_error_info({ErrorLine, Module, ErrorDescriptor}) ->
 compile(Path) ->
     Sexp = 
         case compile:file(Path, [return_errors, strong_validation, return_warnings]) of
-            {ok, _} -> "nil";
-            {ok, _, []} -> "nil";
+            {ok, _} -> "(nil nil)";
+            {ok, _, []} -> "(nil nil)";
             {ok, _, [{_File, Warnings}]} -> 
                 io_lib:format("(nil ~s)", [sexp([process_error_info(W) || W <- Warnings])]);
             error -> 

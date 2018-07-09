@@ -47,11 +47,10 @@
 (defun flierl-compile-file (path)
   (let ((inhibit-quit nil))
     (read
-     (substring
+     (string-trim-right 
       (flierl-comint-run-in-process
        (get-process "inferior-erlang")
-       (format "flierl:compile(\"%s\")." path))
-      0 -3))))
+       (format "flierl:compile(\"%s\")." path))))))
 
 (defun erl-to-flyc-err (file kind message)
   (pcase-let ((`(,line ,message) message))
