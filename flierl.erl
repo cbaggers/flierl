@@ -20,7 +20,7 @@ transform_for_emacs(CompileResult) ->
                 io_lib:format("(nil ~s)", [sexp([process_error_info(W) || W <- Warnings])]);
            
             error -> 
-                "((0 \"unknown error\") nil)";
+                "(((0 \"unknown error\")) nil)";
             {error, [{_File0, Errors}], [{_File1, Warnings}]} -> 
                 io_lib:format("(~s ~s)", [sexp([process_error_info(E) || E <- Errors]),
                                           sexp([process_error_info(W) || W <- Warnings])]);
@@ -37,7 +37,7 @@ compile_and_report(Path, ReportTo) ->
             transform_for_emacs(Report)
         catch
             Err ->
-                io_lib:format("((0 \"Flierl Compile Error: ~p\") nil)", 
+                io_lib:format("(((0 \"Flierl Compile Error: ~p\")) nil)", 
                               [Err])
         end,
     ReportTo ! {self(), Result}.
@@ -49,9 +49,9 @@ compile(Path) ->
                  {Pid, News} ->
                      News;
                  _ -> 
-                     "((0 \"unknown flierl error\") nil)"
+                     "(((0 \"unknown flierl error\")) nil)"
              after
                  3000 ->
-                     "((0 \"compile timed out\") nil)"
+                     "(((0 \"compile timed out\")) nil)"
              end,
     io:format("~s", [Result]).
