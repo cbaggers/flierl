@@ -109,20 +109,23 @@
 
 (defun flycheck-flierl-start (checker callback)
   (condition-case err
-      (let* ((buffer-path (buffer-file-name (current-buffer)))
-             (tmp-path (flycheck-save-buffer-to-temp #'tramp-flycheck-temp-file-system))
-             (split-path (flierl-split-tramp-path tmp-path)))
-        (pcase-let ((`(,remote-root ,local-path) split-path))
-          (pcase-let ((`(,errors ,warnings) (flierl-compile-file local-path)))
-            (let ((results
-                   (append (seq-map (lambda (e) (erl-to-flyc-err
-                                                 buffer-path 'error e))
-                                    errors)
-                           (seq-map (lambda (e) (erl-to-flyc-err
-                                                 buffer-path 'warning e))
-                                    warnings))))
-              (funcall callback 'finished results)
-              (flycheck-safe-delete-temporaries)))))
+      (let ((buffer-path (buffer-file-name (current-buffer))))
+        (if buffer-path
+            (let* ((tmp-path (flycheck-save-buffer-to-temp
+                              #'tramp-flycheck-temp-file-system))
+                   (split-path (flierl-split-tramp-path tmp-path)))
+              (pcase-let ((`(,remote-root ,local-path) split-path))
+                (pcase-let ((`(,errors ,warnings) (flierl-compile-file local-path)))
+                  (let ((results
+                         (append (seq-map (lambda (e) (erl-to-flyc-err
+                                                       buffer-path 'error e))
+                                          errors)
+                                 (seq-map (lambda (e) (erl-to-flyc-err
+                                                       buffer-path 'warning e))
+                                          warnings))))
+                    (funcall callback 'finished results)
+                    (flycheck-safe-delete-temporaries)))))
+          (funcall callback 'finished nil)))
     (error
      (progn
        (message "DEAD")
