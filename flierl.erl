@@ -11,13 +11,14 @@ process_error_info({ErrorLine, Module, ErrorDescriptor}) ->
            end,
     io_lib:format("(~B ~p)", [Line, lists:flatten(Module:format_error(ErrorDescriptor))]).
 
-compile(Path) ->
+transform_for_emacs(CompileResult) ->
     Sexp = 
-        case compile:file(Path, [return_errors, strong_validation, return_warnings]) of
+        case CompileResult of
             {ok, _} -> "(nil nil)";
             {ok, _, []} -> "(nil nil)";
             {ok, _, [{_File, Warnings}]} -> 
                 io_lib:format("(nil ~s)", [sexp([process_error_info(W) || W <- Warnings])]);
+           
             error -> 
                 "((0 \"unknown error\") nil)";
             {error, [{_File0, Errors}], [{_File1, Warnings}]} -> 
@@ -26,4 +27,31 @@ compile(Path) ->
             {error, [{_File0, Errors}], []} -> 
                 io_lib:format("(~s nil)", [sexp([process_error_info(E) || E <- Errors])])
         end,
-    io:format("~s", [lists:flatten(Sexp)]).
+    lists:flatten(Sexp).
+
+
+compile_and_report(Path, ReportTo) ->
+    Result = 
+        try
+            Report = compile:file(Path, [strong_validation, return]),
+            transform_for_emacs(Report)
+        catch
+            Err ->
+                io_lib:format("((0 \"Flierl Compile Error: ~p\") nil)", 
+                              [Err])
+        end,
+    ReportTo ! {self(), Result}.
+
+compile(Path) ->
+    Self = self(),
+    Pid = spawn(fun () -> compile_and_report(Path, Self) end),
+    Result = receive
+                 {Pid, News} ->
+                     News;
+                 _ -> 
+                     "((0 \"unknown flierl error\") nil)"
+             after
+                 3000 ->
+                     "((0 \"compile timed out\") nil)"
+             end,
+    io:format("~s", [Result]).

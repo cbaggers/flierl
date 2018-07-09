@@ -22,13 +22,52 @@
 
 ;;------------------------------------------------------------
 
+(defun flierl-redirect-send-command-to-process (command output-buffer process)
+  (assert (processp process))
+  (let* (;; The process buffer
+	 (process-buffer (process-buffer process))
+	 (proc (get-buffer-process process-buffer))
+         (flierl-prompt-regexp "^[^>=]*[0-9]+> *"))
+    ;; Change to the process buffer
+    (with-current-buffer process-buffer
+
+      ;; Make sure there's a prompt in the current process buffer
+      (and comint-redirect-perform-sanity-check
+           (save-excursion
+             (goto-char (point-max))
+             (or (re-search-backward flierl-prompt-regexp nil t)
+        	 (error "No prompt found or `comint-prompt-regexp' not set properly"))))
+
+      ;; Set up for redirection
+      (comint-redirect-setup
+       output-buffer
+       (current-buffer)                 ; Comint Buffer
+       flierl-prompt-regexp             ; Finished Regexp
+       nil)                            ; Echo input
+
+      ;; Set the filter.
+      ;; was originally:
+      ;;  (add-function :around (process-filter proc) #'wat-redirect-filter)
+      ;; but expanded to non-lexical let which screwed up use as filter.
+      ;; below is the fixes expansion
+      (advice--add-function :around (lexical-let ((v proc))
+                                      (cons #'(lambda nil (process-filter v))
+                                            #'(lambda (gv--val)
+                                              (set-process-filter v gv--val))))
+                            #'comint-redirect-filter nil)
+
+      ;; Send the command
+      (process-send-string (current-buffer) (concat command "\n"))))
+  t)
+
 (defun flierl-comint-run-in-process (process command)
   "Send COMMAND to PROCESS."
   (let ((output-buffer " *Comint Redirect Work Buffer*"))
     (with-current-buffer (get-buffer-create output-buffer)
       (erase-buffer)
-      (comint-redirect-send-command-to-process command
-					       output-buffer process nil t)
+      (flierl-redirect-send-command-to-process command
+					       output-buffer
+                                               process)
       ;; Wait for the process to complete
       (set-buffer (process-buffer process))
       (while (and (null comint-redirect-completed)
@@ -51,6 +90,12 @@
       (flierl-comint-run-in-process
        (get-process "inferior-erlang")
        (format "flierl:compile(\"%s\")." path))))))
+
+(defun watman (path)
+  (let ((inhibit-quit nil))
+    (flierl-comint-run-in-process
+     (get-process "inferior-erlang")
+     (format "flierl:compile(\"%s\")." path))))
 
 (defun erl-to-flyc-err (file kind message)
   (pcase-let ((`(,line ,message) message))
