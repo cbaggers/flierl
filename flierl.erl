@@ -25,6 +25,9 @@ transform_for_emacs(CompileResult) ->
                 io_lib:format("(~s nil)", [sexp([process_error_info(E) || E <- Errors])]);
             {error, [{_File0, Errors}], []} -> 
                 io_lib:format("(~s nil)", [sexp([process_error_info(E) || E <- Errors])]);
+            {error, [{_File0, Errors}], [{_File1, Warnings}]} -> 
+                io_lib:format("(~s ~s)", [sexp([process_error_info(E) || E <- Errors]),
+                                          sexp([process_error_info(W) || W <- Warnings])]);
             {error, [{_File0, Errors}, {_File1, Warnings}]} -> 
                 io_lib:format("(~s ~s)", [sexp([process_error_info(E) || E <- Errors]),
                                           sexp([process_error_info(W) || W <- Warnings])]);
