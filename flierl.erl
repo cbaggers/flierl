@@ -43,11 +43,9 @@ compile_and_report(Path, ReportTo) ->
             transform_for_emacs(Report)
         catch
             Err ->
-                erlang:display("SHI"),
                 io_lib:format("(((0 \"Flierl Compile Error: ~p\")) nil)", 
                               [Err])
         end,
-    erlang:display({"CockFace! reporting to", ReportTo, {Self, Result}}),
     ReportTo ! {Self, Result}.
 
 clear_mailbox() ->
@@ -58,13 +56,13 @@ clear_mailbox() ->
         ok
     end.
 
-await_compile_result() ->
+await_compile_result(Pid, Ref) ->
     receive
-        {_Pid, News} ->
+        {Pid, News} ->
             News;
-        {'DOWN', _Ref, _Type, _Object, normal} ->
-            await_compile_result();
-        {'DOWN', _Ref, Type, Object, Info} ->
+        {'DOWN', Ref, _Type, _Object, normal} ->
+            await_compile_result(Pid, Ref);
+        {'DOWN', Ref, Type, Object, Info} ->
             erlang:display({flierl_monitored_error, Type, Object, Info}),
             "(((0 \"unknown flierl error\")) nil)";
         Err -> 
@@ -79,7 +77,6 @@ await_compile_result() ->
 compile(Path) ->
     Self = self(),
     {Pid, Ref} = spawn_monitor(fun () -> compile_and_report(Path, Self) end),
-    erlang:display({i, Self, spawned, Pid, with, Ref}),
-    Result = await_compile_result(),
+    Result = await_compile_result(Pid, Ref),
     clear_mailbox(),
     io:format("~s", [Result]).
