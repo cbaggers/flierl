@@ -83,13 +83,27 @@
 
 ;;------------------------------------------------------------
 
+(defun remove-flierl-gumf (result)
+  (let* ((head "FLIERL_START")
+         (tail "FLIERL_END")
+         (regex (format "%s.*%s" head tail))
+         (match (string-match regex result)))
+    (if match
+        (cl-subseq (match-string 0 result) 
+                   (length head)
+                   (- (length tail)))
+      '(nil nil))))
+
 (defun flierl-compile-file (path)
   (let ((inhibit-quit nil))
-    (read
-     (string-trim-right 
-      (flierl-comint-run-in-process
-       (get-process "inferior-erlang")
-       (format "flierl:compile(\"%s\")." path))))))
+    (lexical-let* ((dope (flierl-comint-run-in-process
+                          (get-process "inferior-erlang")
+                          (format "flierl:compile(\"%s\")."
+                                  (string-trim path))))
+                   (trimmed (remove-flierl-gumf (string-trim-right dope)))
+                   (read-him (car (read-from-string trimmed))))
+      ;; (message (format "dopes: %s -> %s" trimmed read-him))
+      read-him)))
 
 (defun watman (path)
   (let ((inhibit-quit nil))
@@ -114,17 +128,20 @@
             (let* ((tmp-path (flycheck-save-buffer-to-temp
                               #'tramp-flycheck-temp-file-system))
                    (split-path (flierl-split-tramp-path tmp-path)))
+              
               (pcase-let ((`(,remote-root ,local-path) split-path))
-                (pcase-let ((`(,errors ,warnings) (flierl-compile-file local-path)))
-                  (let ((results
-                         (append (seq-map (lambda (e) (erl-to-flyc-err
-                                                       buffer-path 'error e))
-                                          errors)
-                                 (seq-map (lambda (e) (erl-to-flyc-err
-                                                       buffer-path 'warning e))
-                                          warnings))))
-                    (funcall callback 'finished results)
-                    (flycheck-safe-delete-temporaries)))))
+                (let ((cres (flierl-compile-file local-path)))
+                  ;; (message (format "hoo: %s" cres))
+                  (pcase-let ((`(,errors ,warnings) cres))
+                    (let ((results
+                           (append (seq-map (lambda (e) (erl-to-flyc-err
+                                                         buffer-path 'error e))
+                                            errors)
+                                   (seq-map (lambda (e) (erl-to-flyc-err
+                                                         buffer-path 'warning e))
+                                            warnings))))
+                      (funcall callback 'finished results)
+                      (flycheck-safe-delete-temporaries))))))
           (funcall callback 'finished nil)))
     (error
      (progn

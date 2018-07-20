@@ -82,4 +82,6 @@ compile(Path) ->
     {Pid, Ref} = spawn_monitor(fun () -> compile_and_report(Path, Self) end),
     Result = await_compile_result(Pid, Ref),
     clear_mailbox(),
-    io:format("~s", [Result]).
+    Head = "__FLIERL_START",
+    Tail = "FLIERL_END__",
+    io:format("~s~s~s", [Head, Result, Tail]).
